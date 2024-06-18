@@ -29,7 +29,7 @@ GetCRTCType:
   
     ld    bc,#bc00+44   ; select register 44 (means 12 on CRTC 0, 44 on CRTC 5)
     out   (c),c
-    ld    bc,#bf00      ; read register 52 
+    ld    bc,#bf00      ; read register 44 
     in    a,(c)
     cp    52            ; is only readable on CRTC 0, register 44 returns 0
     jr    z,@CRTC_0
@@ -41,7 +41,7 @@ GetCRTCType:
     
     ; CRTC 0
 @CRTC_0
-    xor a
+    xor   a
     ret
 
     ; CRTC 1 or 2
