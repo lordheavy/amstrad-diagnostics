@@ -1,76 +1,82 @@
 
-
-;; By Rhino http://www.cpcwiki.eu/forum/programming/crtc-type-detection-code/
+;; CRTC 5 (CRTC6345) detection by Cheshirecat https://thecheshirec.at/2024/05/07/un-crtc6345-sur-amstrad-cpc/
+;; With the help of the compendium by LongShot https://shaker.logonsystem.eu/
+;; PPI detection code by Rhino
+;; Code adaptation by Lordheavy
 ; Detect CRTC type
 ; Output
-; a = CRTC type (0,1,2,3,4)
+; a = CRTC type (0,1,2,3,4,5)
 GetCRTCType:
-    ld    bc,#bc0c        ; select reg 12 (R/W)
-    out    (c),c
-    ld    bc,#bd00+%0110100    ; write a value
-    out    (c),c
-
-;    call    wVb
-    ld     b,#f5            ; wait Vbl
-@vbLoop1
+    ld    bc,#bc00+12   ; select register 12 (Display Start Address)
+    out   (c),c
+    ld    bc,#bd00+52   ; write value %0110100 (#C000/16kB)
+    out   (c),c
+    ld    bc,#bf00      ; read register 12 
     in    a,(c)
-    rra
-    jr    c,@vbLoop1
-@vbLoop2
+    cp    0
+    jr    z,@CRTC_1_2   ; A null value is always returned on CRTC 1 and 2
+
+    ; CRTC 0, 3, 4 or 5
+
+    ld    bc,#bc00+52   ; select register 52 (means 12 on CRTC 3/4,20 on CRTC 0, 52 on CRTC 5)
+    out   (c),c
+    ld    bc,#bf00      ; read register 52 
     in    a,(c)
-    rra
-    jr    nc,@vbLoop2
+    cp    52
+    jr    z,@CRTC_3_4   ; is only readable on CRTC 3 and 4, registers 20 or 52 return 0
 
-    ld    b,#be            ; read from status register
+    ; CRTC 0 or 5
+  
+    ld    bc,#bc00+44   ; select register 44 (means 12 on CRTC 0, 44 on CRTC 5)
+    out   (c),c
+    ld    bc,#bf00      ; read register 52 
     in    a,(c)
-    ld    d,a
+    cp    52            ; is only readable on CRTC 0, register 44 returns 0
+    jr    z,@CRTC_0
 
-    inc    b            ; read from #bf (read register)
-    in    a,(c)
+    ; CRTC 5
 
-    cp    d            ; #be == #bf?
-    jr    z,@CRTC_3_4
-
-    ; CRTC 0 1 or 2
-
-    cp    c;%0110100        ; same value?
-    jr    nz,@CRTC_1_2
-
+    ld    a,5
+    ret
+    
     ; CRTC 0
-
-    xor    a       
+@CRTC_0
+    xor a
     ret
 
+    ; CRTC 1 or 2
 @CRTC_1_2
-    ld    a,d
-    and    a,%011111
-    jr    nz,@CRTC_2
-
-    ; CRTC 1
-
-    ld    a,1
-    ret
-
+    ld    bc,#bc00+31   ; select register 31 - only readable on CRTC 1
+    out   (c),c
+    ld    bc,#bf00      ; read register 31 
+    in    a,(c)
+    cp    0
+    jr    nz,@CRTC_1
+    
     ; CRTC 2
 
-@CRTC_2
     ld    a,2
+    ret
+
+    ; CRTC 1
+@CRTC_1
+    ld    a,1       
     ret
 
     ; CRTC 3 or 4
 
 @CRTC_3_4
-    ld     bc,#f782
-    out     (c),c
-    dec     b
-    ld     a,#F
-    out     (c),a
-    inc     b
-    out     (c),c
-    dec     b
-    in     c,(c)
-    cp     c
-    jr     nz,@CRTC_4
+    ld    bc,#f782
+    out   (c),c
+    dec   b
+    ld    a,#0f
+    out   (c),a
+    inc   b
+    out   (c),c
+    dec   b
+    in    c,(c)
+    cp    c
+    jr    nz,@CRTC_4
 
     ; CRTC 3
 
